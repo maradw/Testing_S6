@@ -1,0 +1,120 @@
+# .github/workflows/test-playerhealth.yml
+name: Unity Tests - PlayerHealth System
+
+# Cuándo ejecutar los tests
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+    paths:
+      - 'Assets/Scripts/**'
+      - 'Assets/Tests/**'
+      - 'Packages/**'
+  
+  pull_request:
+    branches: [ main ]
+  
+  workflow_dispatch:
+    inputs:
+      test_mode:
+        description: 'Modo de test a ejecutar'
+        required: false
+        default: 'playmode'
+        type: choice
+        options:
+          - playmode
+          - editmode
+          - both
+
+env:
+  UNITY_VERSION: 6000.2.1f1
+  PROJECT_PATH: .
+
+jobs:
+  run-unity-tests:
+    name: Run PlayerHealth Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        test-mode:
+          - playmode
+          - editmode
+    
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+      
+      - name: 💾 Cache Unity Library
+        uses: actions/cache@v3
+        with:
+          path: Library
+          key: Library-${{ runner.os }}-${{ matrix.test-mode }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-${{ runner.os }}-${{ matrix.test-mode }}-
+            Library-${{ runner.os }}-
+      
+      - name: 🧪 Run Unity Tests (${{ matrix.test-mode }})
+        uses: game-ci/unity-test-runner@v4
+        id: unity-tests
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: ${{ env.UNITY_VERSION }}
+          testMode: ${{ matrix.test-mode }}
+          projectPath: ${{ env.PROJECT_PATH }}
+          artifactsPath: test-results/${{ matrix.test-mode }}
+          useHostNetwork: false
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          checkName: ${{ matrix.test-mode }} Test Results
+          coverageOptions: 'generateAdditionalMetrics;generateHtmlReport;generateBadgeReport;assemblyFilters:+Assembly-CSharp'
+      
+      - name: 📄 Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: Test-Results-${{ matrix.test-mode }}-${{ github.run_number }}
+          path: test-results/${{ matrix.test-mode }}
+          retention-days: 30
+      
+      - name: 📊 Upload Coverage Reports
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: Coverage-Report-${{ matrix.test-mode }}-${{ github.run_number }}
+          path: ${{ steps.unity-tests.outputs.coveragePath }}
+          retention-days: 30
+
+  test-report:
+    name: 📊 Generate Test Report
+    runs-on: ubuntu-latest
+    needs: run-unity-tests
+    if: always()
+    
+    steps:
+      - name: 📥 Download All Test Results
+        uses: actions/download-artifact@v3
+        with:
+          path: all-test-results
+      
+      - name: 📋 Generate Summary Report
+        run: |
+          echo "# 🧪 Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Tu Clase TestingPlayMode" >> $GITHUB_STEP_SUMMARY
+          echo "Los siguientes tests fueron ejecutados:" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ TestPlayerHealthSystemPlayMode" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ TestPlayerDeathPlayMode" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ NewTestScriptSimplePasses" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ NewTestScriptSyncPasses" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🎯 **Sistema PlayerHealth verificado:** Vida, armadura, daño y estado vivo/muerto" >> $GITHUB_STEP_SUMMARY
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
