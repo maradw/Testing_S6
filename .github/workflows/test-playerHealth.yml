@@ -4,21 +4,29 @@ name: Unity Tests - PlayerHealth System
 # Cuándo ejecutar los tests
 on:
   push:
-    branches: [ master, develop, feature/* ]
+    branches:
+      - master
+      - develop
+      - feature/**
     paths:
       - 'Assets/Scripts/**'
+      - 'Assets/scripts/**'
       - 'Assets/Tests/**'
       - 'Packages/**'
-  
+
   pull_request:
-    branches: [ master ]
-  
+    branches:
+      - master
+    paths:
+      - 'Assets/**'
+      - 'Packages/**'
+
   workflow_dispatch:
     inputs:
       test_mode:
         description: 'Modo de test a ejecutar'
         required: false
-        default: 'playmode'
+        default: 'both'
         type: choice
         options:
           - playmode
@@ -26,7 +34,7 @@ on:
           - both
 
 env:
-  UNITY_VERSION: 6000.2.1f1
+  UNITY_VERSION: 6000.0.56f1
   PROJECT_PATH: .
 
 jobs:
