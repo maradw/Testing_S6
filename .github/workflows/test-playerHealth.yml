@@ -4,14 +4,14 @@ name: Unity Tests - PlayerHealth System
 # Cuándo ejecutar los tests
 on:
   push:
-    branches: [ main, develop, feature/* ]
+    branches: [ master, develop, feature/* ]
     paths:
       - 'Assets/Scripts/**'
       - 'Assets/Tests/**'
       - 'Packages/**'
   
   pull_request:
-    branches: [ main ]
+    branches: [ master ]
   
   workflow_dispatch:
     inputs:
